@@ -7,9 +7,57 @@
     <script>
         $(document).ready(() => {
             const connection = new signalR.HubConnectionBuilder()
-                .withUrl("http://localhost:5276/myhub").build();
+                .withUrl("http://localhost:5276/myhub")
+                //.withAutomaticReconnect() // 0-2-10-30 -> baglanti var lakin koptugu durumlarda kullanilir
+                .withAutomaticReconnect([1000, 1000, 2000]) // baglanti koptuysa 1000ms de dene, olmadiysa 1000ms
+                // sonra yinde dene,... -> bu sekilde periyodu kendin de ayarlayabilirsin
+                .build();
 
-            connection.start();
+            // baglanti hic kurulmadigi durumlarda kullanilan fonksiyon
+            async function start() {
+                try {
+                    await connection.start();
+                } catch (error) {
+                    setTimeout(() => start(), 2000);
+                }
+            }
+            // connection.start();
+            start();
+
+            const durum = $("#durum");
+
+            connection.onreconnecting(error => {
+                durum.css("background-color", "blue");
+                durum.css("color", "white");
+                durum.html("Baglanti kuruluyor...");
+                durum.fadeIn(2000, () => {
+                    setTimeout(() => {
+                        durum.fadeOut(2000);
+                    }, 2000)
+                });
+            });
+
+            connection.onreconnected(connectionId => {
+                durum.css("background-color", "green");
+                durum.css("color", "white");
+                durum.html("Baglanti kuruldu...");
+                durum.fadeIn(2000, () => {
+                    setTimeout(() => {
+                        durum.fadeOut(2000);
+                    }, 2000)
+                });
+            });
+
+            connection.onclose(connectionId => {
+                durum.css("background-color", "red");
+                durum.css("color", "white");
+                durum.html("Baglanamadi...");
+                durum.fadeIn(2000, () => {
+                    setTimeout(() => {
+                        durum.fadeOut(2000);
+                    }, 2000)
+                });
+            });
 
             $("#btnGonder").click(() => {
                 let message = $("#txtMessage").val();
@@ -17,16 +65,21 @@
             });
 
             connection.on("receiveMessage", message => {
-                $("div").append(message + "<br>");
+                $("#mesajlar").append(message + "<br>");
             })
+
+
         });
     </script>
 
 </head>
 <body>
+
+    <div id="durum" style="display: none"></div>
+
     <input type="text" id="txtMessage">
     <button id="btnGonder">Send</button>
 
-    <div></div>
+    <div id="mesajlar"></div>
 </body>
 </html>
